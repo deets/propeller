@@ -36,6 +36,14 @@ pub rreg(register) : value
   i2c.stop()
   return value
 
+pub wreg(register, value)
+  i2c.start()
+  i2c.write(adr)
+  i2c.write(register)
+  i2c.write(value >> 8)
+  i2c.write(value & $ff)
+  i2c.stop()
+
 {{
 
   Terms of Use: MIT License
