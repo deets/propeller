@@ -21,10 +21,37 @@ var
 obj
   i2c : "jm_i2c"
 
+{
+  Start the object with
+
+  adr_: the address as defined by ads1115
+  scl, sda: I2C
+  khz: bus speed, 400 for full speed
+  pullup: chose the pullup of the P2, see the PU_* constants
+
+  return: if there actually is a device present under the address
+}
 pub start(adr_, scl, sda, khz, pullup) : result
   i2c.setup(scl, sda, khz, pullup)
   adr := adr_ << 1 ' correct for the R/W-bit
   return i2c.present(adr)
+
+{
+  Convenience method to perform one single ended
+  convertion for
+
+  channel: 0-4
+  pga: gain amplifier setting, see PGA* constants
+  sps: samples per second, see SPS* constants
+}
+pub single_ended(channel, pga_, sps_) : result
+   pga(pga_)
+   sps(sps_)
+   mode(SINGLESHOT)
+   mux(channel | 4)
+   single_conversion()
+   repeat until rreg(CONFIG) & %1_000_0000_0000_0000
+   return rreg(CONVERSION)
 
 pub mode(value) | h
   if value
@@ -41,19 +68,6 @@ pub single_conversion() | h
   h &= %0_111_111_1_11111111
   h |= %1_000_000_0_00000000
   wreg(CONFIG, h)
-
-{
-  Convenience method to perform one single ended
-  convertion for a given channel, pga and sps
-}
-pub single_ended(channel, pga_, sps_) : result
-   pga(pga_)
-   sps(sps_)
-   mode(SINGLESHOT)
-   mux(channel | 4)
-   single_conversion()
-   repeat until rreg(CONFIG) & %1_000_0000_0000_0000
-   return rreg(CONVERSION)
 
 pub comp_que(value) | h
   h := rreg(CONFIG)
