@@ -12,6 +12,8 @@
 con
   #0, CONVERSION, CONFIG, LO_THRESH, HI_THRESH
   #0, PU_NONE, PU_1K5, PU_3K3, PU_15K                           ' pull-up options, forwarded from i2c
+  #0, PGA6144, PGA4096, PGA2048, PGA1024, PGA0512, PGA0256, PGA0256_, PGA0256__ ' Gain settings
+  #0, CONTINUOUS, SINGLESHOT
 var
   byte adr
   byte buf[2]
@@ -22,6 +24,53 @@ pub start(adr_, scl, sda, khz, pullup) : result
   i2c.setup(scl, sda, khz, pullup)
   adr := adr_ << 1 ' correct for the R/W-bit
   return i2c.present(adr)
+
+pub mode(value) | h
+  if value
+    value := 1
+  else
+    value := 0
+  h := rreg(CONFIG)
+  h &= %1_111_111_0_11111111
+  h |= (value & 1) << 8
+  wreg(CONFIG, h)
+
+pub comp_que(value) | h
+  h := rreg(CONFIG)
+  h &= %1_111_111_1_111111_00
+  h |= (value & 3)
+  wreg(CONFIG, h)
+
+pub lo_threshold(value)
+  wreg(LO_THRESH, value)
+
+pub hi_threshold(value)
+  wreg(HI_THRESH, value)
+
+{
+  Turn on the conversion ready pin is achieved by
+  setting LSB LO_THRESH to 0 and MSB HI_THRESh to 1, and
+  anything but 11.
+
+  This here is the most basic setting, for a more sophisticated
+  use you can use the lo/hi_threshold methods.
+}
+pub ready_on()
+  lo_threshold(0)
+  hi_threshold($ffff)
+  comp_que(0)
+
+pub mux(value) | h
+  h := rreg(CONFIG)
+  h &= %10001111_11111111
+  h |= (value & 7) << 12
+  wreg(CONFIG, h)
+
+pub pga(value) | h
+  h := rreg(CONFIG)
+  h &= %1111_000_1_11111111
+  h |= (value & 7) << 9
+  wreg(CONFIG, h)
 
 pub rreg(register) : value
   value := 0
