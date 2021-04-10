@@ -13,6 +13,7 @@ con
   #0, CONVERSION, CONFIG, LO_THRESH, HI_THRESH
   #0, PU_NONE, PU_1K5, PU_3K3, PU_15K                           ' pull-up options, forwarded from i2c
   #0, PGA6144, PGA4096, PGA2048, PGA1024, PGA0512, PGA0256, PGA0256_, PGA0256__ ' Gain settings
+  #0, SPS8, SPS16, SPS32, SPS64, SPS128, SPS250, SPS475, SPS860
   #0, CONTINUOUS, SINGLESHOT
 var
   byte adr
@@ -34,6 +35,25 @@ pub mode(value) | h
   h &= %1_111_111_0_11111111
   h |= (value & 1) << 8
   wreg(CONFIG, h)
+
+pub single_conversion() | h
+  h := rreg(CONFIG)
+  h &= %0_111_111_1_11111111
+  h |= %1_000_000_0_00000000
+  wreg(CONFIG, h)
+
+{
+  Convenience method to perform one single ended
+  convertion for a given channel, pga and sps
+}
+pub single_ended(channel, pga_, sps_) : result
+   pga(pga_)
+   sps(sps_)
+   mode(SINGLESHOT)
+   mux(channel | 4)
+   single_conversion()
+   repeat until rreg(CONFIG) & %1_000_0000_0000_0000
+   return rreg(CONVERSION)
 
 pub comp_que(value) | h
   h := rreg(CONFIG)
@@ -70,6 +90,12 @@ pub pga(value) | h
   h := rreg(CONFIG)
   h &= %1111_000_1_11111111
   h |= (value & 7) << 9
+  wreg(CONFIG, h)
+
+pub sps(value) | h
+  h := rreg(CONFIG)
+  h &= %1111_111_1_00011111
+  h |= (value & 7) << 5
   wreg(CONFIG, h)
 
 pub rreg(register) : value
