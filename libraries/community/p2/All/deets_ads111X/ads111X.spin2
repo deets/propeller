@@ -1,14 +1,13 @@
 '' =================================================================================================
 ''
-''   File....... ads11X.spin2
-''   Purpose....
+''   File....... ads111X.spin2
+''   Purpose.... Control an ADC of the ads111X series by TI
 ''   Author..... Diez "deets" Roggisch
 ''               Copyright (c) 2021 Diez B. Roggisch
 ''               -- see below for terms of use
 ''   E-mail..... deets@web.de
 ''
 '' =================================================================================================
-
 con
   #0, CONVERSION, CONFIG, LO_THRESH, HI_THRESH
   #0, PU_NONE, PU_1K5, PU_3K3, PU_15K                           ' pull-up options, forwarded from i2c

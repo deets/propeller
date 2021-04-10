@@ -1,0 +1,34 @@
+{
+  Simple example program that illustrates how to use ads111X
+}
+con
+  _clkfreq = 160_000_000
+
+  RX1     = 35  { I }                                           ' programming / debug
+  TX1     = 37  { O }
+  BR_TERM  = 115_200                                            ' terminal baud rate
+
+  ADC_ADR = %1001000
+  'ADC_ADR = %1001001
+  'ADC_ADR = %1001010
+  'ADC_ADR = %1001011
+
+  ADC_SCL = 41
+  ADC_SDA = 40
+  ADC_KHZ = 400
+  ADC_PULLUP = 1
+var
+
+obj
+  term : "jm_fullduplexserial"
+  adc : "ads111X"
+
+pub main() | present, i, raw, low_raw, high_raw
+  term.start(RX1, TX1, %0000, BR_TERM)
+  present := adc.start(ADC_ADR , ADC_SCL, ADC_SDA, ADC_KHZ, adc.PU_3K3)
+  term.fstr1(string("present: %d\r\n"), present)
+
+  if present
+    repeat
+      repeat i from 3 to 3
+        term.fstr3(string("%8.8x:%d:%4.4x\r\n"), cnt(), i, adc.single_ended(i, adc.PGA4096, adc.SPS16))
