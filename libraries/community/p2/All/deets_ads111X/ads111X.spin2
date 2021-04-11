@@ -13,7 +13,11 @@ con
   #0, PU_NONE, PU_1K5, PU_3K3, PU_15K                           ' pull-up options, forwarded from i2c
   #0, PGA6144, PGA4096, PGA2048, PGA1024, PGA0512, PGA0256, PGA0256_, PGA0256__ ' Gain settings
   #0, SPS8, SPS16, SPS32, SPS64, SPS128, SPS250, SPS475, SPS860
-  #0, CONTINUOUS, SINGLESHOT
+  #0, CONTINUOUS, SINGLESHOT ' Constants for conversion mode
+  #0, COMP_TRADITIONAL, COMP_WINDOW ' Comparator behaviour
+  #0, COMP_POL_ACTIVE_LOW, COMP_POL_ACTIVE_HIGH ' ALERT logic level
+  #0, COMP_LATCH_NO, COMP_LATCH_YES
+  #0, COMP_LAT_1, COMP_LAT_2, COMP_LAT_4, COMP_LAT_OFF
 var
   byte adr
   byte buf[2]
@@ -47,32 +51,37 @@ pub single_ended(channel, pga_, sps_) : result
    pga(pga_)
    sps(sps_)
    mode(SINGLESHOT)
-   mux(channel | 4)
-   single_conversion()
+   select_single_channel(channel)
+   start_single_conversion()
    repeat until rreg(CONFIG) & %1_000_0000_0000_0000
-   return rreg(CONVERSION)
+   return read_conversion()
 
-pub mode(value) | h
-  if value
-    value := 1
-  else
-    value := 0
-  h := rreg(CONFIG)
-  h &= %1_111_111_0_11111111
-  h |= (value & 1) << 8
-  wreg(CONFIG, h)
+pub select_single_channel(channel)
+   mux(channel | 4)
 
-pub single_conversion() | h
-  h := rreg(CONFIG)
-  h &= %0_111_111_1_11111111
-  h |= %1_000_000_0_00000000
-  wreg(CONFIG, h)
+pub read_conversion() : result
+  return rreg(CONVERSION)
 
-pub comp_que(value) | h
-  h := rreg(CONFIG)
-  h &= %1_111_111_1_111111_00
-  h |= (value & 3)
-  wreg(CONFIG, h)
+pub mode(value) ' CONTINUOUS or SINGLESHOT
+  set_config_bits(value, 1, 8)
+
+{
+  Initiate a single conversion if in SINGLESHOT mode
+}
+pub start_single_conversion()
+  set_config_bits(1, 1, 15)
+
+pub comparator_polarity(value)
+  set_config_bits(value, 1, 3)
+
+pub comparator_mode(value)
+  set_config_bits(value, 1, 4)
+
+pub comparator_latching(value)
+  set_config_bits(value, 1, 2)
+
+pub comparator_queue(value) | h
+  set_config_bits(value, 3, 0)
 
 pub lo_threshold(value)
   wreg(LO_THRESH, value)
@@ -91,25 +100,16 @@ pub hi_threshold(value)
 pub ready_on()
   lo_threshold(0)
   hi_threshold($ffff)
-  comp_que(0)
+  comparator_queue(COMP_LAT_1)
 
-pub mux(value) | h
-  h := rreg(CONFIG)
-  h &= %10001111_11111111
-  h |= (value & 7) << 12
-  wreg(CONFIG, h)
+pub mux(value)
+  set_config_bits(value, 7, 12)
 
-pub pga(value) | h
-  h := rreg(CONFIG)
-  h &= %1111_000_1_11111111
-  h |= (value & 7) << 9
-  wreg(CONFIG, h)
+pub pga(value)
+  set_config_bits(value, 7, 9)
 
-pub sps(value) | h
-  h := rreg(CONFIG)
-  h &= %1111_111_1_00011111
-  h |= (value & 7) << 5
-  wreg(CONFIG, h)
+pub sps(value)
+  set_config_bits(value, 7, 5)
 
 pub rreg(register) : value
   value := 0
@@ -131,6 +131,17 @@ pub wreg(register, value)
   i2c.write(value >> 8)
   i2c.write(value & $ff)
   i2c.stop()
+
+pri set_config_bits(value, mask, offset) | h
+  'send(value)
+  'send(offset)
+  value &= mask
+  mask := (mask << offset) ^ $ffff
+  'send(mask)
+  h := rreg(CONFIG)
+  h &= mask
+  h |= value << offset
+  wreg(CONFIG, h)
 
 {{
 

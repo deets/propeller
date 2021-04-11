@@ -23,12 +23,28 @@ obj
   term : "jm_fullduplexserial"
   adc : "ads111X"
 
-pub main() | present, i, raw, low_raw, high_raw
+pub main() | present, raw, hit, lot
   term.start(RX1, TX1, %0000, BR_TERM)
   present := adc.start(ADC_ADR , ADC_SCL, ADC_SDA, ADC_KHZ, adc.PU_3K3)
   term.fstr1(string("present: %d\r\n"), present)
-
+  send := @print_16_bits
   if present
+    adc.lo_threshold($2772)
+    adc.hi_threshold($7fff)
+    hit := adc.rreg(adc.HI_THRESH)
+    lot := adc.rreg(adc.LO_THRESH)
+    adc.mode(adc.CONTINUOUS)
+    adc.sps(adc.SPS16)
+    adc.pga(adc.PGA4096)
+    adc.comparator_mode(adc.COMP_WINDOW)
+    adc.comparator_polarity(adc.COMP_POL_ACTIVE_LOW)
+    adc.comparator_latching(adc.COMP_LATCH_YES)
+    adc.comparator_queue(adc.COMP_LAT_1)
+    adc.select_single_channel(3)
     repeat
-      repeat i from 3 to 3
-        term.fstr3(string("%8.8x:%d:%4.4x\r\n"), cnt(), i, adc.single_ended(i, adc.PGA4096, adc.SPS16))
+      term.fstr4(string("%8.8x:%d:%4.4x:%4.4x\r\n"), cnt(), 3, adc.read_conversion(), lot)
+  else
+    term.fstr0(string("No ADC found!\r\n"))
+
+pri print_16_bits(v)
+  term.fstr1(string("%16.16b\r\n"), v)
